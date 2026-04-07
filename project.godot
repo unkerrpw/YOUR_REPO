@@ -1,0 +1,21 @@
+config_version=5
+
+[application]
+
+config/name="BallBlast"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.2", "Mobile")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=414
+window/size/viewport_height=896
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
