@@ -15,30 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fix ownership and permissions
+      - name: Fix permissions
         run: |
           chown -R root:root .
           chmod -R 777 .
           mkdir -p .godot/editor .godot/imported
 
-      - name: Setup export templates
+      - name: Setup templates and settings
         run: |
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "JAVA_HOME=$JAVA" >> $GITHUB_ENV
           mkdir -p $HOME/.local/share/godot/export_templates/4.2.2.stable
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* $HOME/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
+          mkdir -p $HOME/.config/godot
+          cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
+          echo "=== Settings file ===" && cat $HOME/.config/godot/editor_settings-4.tres
+          echo "=== Java: $JAVA ==="
 
       - name: Install build-tools 34
         run: yes | sdkmanager "build-tools;34.0.0" 2>/dev/null || true
-
-      - name: Copy and patch editor settings
-        run: |
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "HOME=$HOME  JAVA=$JAVA"
-          mkdir -p $HOME/.config/godot
-          cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
-          echo "=== Original settings ===" && cat $HOME/.config/godot/editor_settings-4.tres
-          sed -i "/java_sdk_path/d" $HOME/.config/godot/editor_settings-4.tres
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> $HOME/.config/godot/editor_settings-4.tres
-          echo "=== Patched settings ===" && cat $HOME/.config/godot/editor_settings-4.tres
 
       - name: Patch export_presets keystore
         run: |
@@ -49,10 +44,9 @@ jobs:
 
       - name: Build APK
         run: |
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          export JAVA_HOME=$JAVA
-          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/BallBlast.apk 2>&1 | tail -20
-          ls -la $GITHUB_WORKSPACE/*.apk 2>/dev/null || echo "No APK in workspace"
+          export JAVA_HOME=$JAVA_HOME
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/BallBlast.apk 2>&1
+          ls -la $GITHUB_WORKSPACE/*.apk 2>/dev/null || echo "No APK found"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
