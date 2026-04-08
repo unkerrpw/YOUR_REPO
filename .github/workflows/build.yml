@@ -18,21 +18,27 @@ jobs:
       - name: Setup export templates
         run: |
           mkdir -p ~/.local/share/godot/export_templates/4.2.2.stable
-          mv /root/.local/share/godot/export_templates/4.2.2.stable/* ~/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
+          cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* ~/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
 
-      - name: Generate debug keystore
+      - name: Find existing keystore
         run: |
-          keytool -genkey -v -keystore /root/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+          find / -name "*.keystore" 2>/dev/null || true
+          find / -name "debug.keystore" 2>/dev/null || true
+          ls /root/.android/ 2>/dev/null || true
 
       - name: Patch export_presets with keystore
         run: |
-          sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg
+          KS="/root/.android/debug.keystore"
+          sed -i "s|keystore/debug=\"\"|keystore/debug=\"$KS\"|" export_presets.cfg
+          sed -i 's|keystore/debug_user="androiddebugkey"|keystore/debug_user="androiddebugkey"|' export_presets.cfg
+          sed -i 's|keystore/debug_password="android"|keystore/debug_password="android"|' export_presets.cfg
           grep keystore export_presets.cfg
 
       - name: Create editor settings
         run: |
           mkdir -p ~/.config/godot
-          printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/android_sdk_path = "/usr/lib/android-sdk"\nexport/android/debug_keystore = "/root/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' > ~/.config/godot/editor_settings-4.tres
+          printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/android_sdk_path = "/usr/lib/android-sdk"\nexport/android/debug_keystore = "/root/.android/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' > ~/.config/godot/editor_settings-4.tres
+          cat ~/.config/godot/editor_settings-4.tres
 
       - name: Import project
         run: |
