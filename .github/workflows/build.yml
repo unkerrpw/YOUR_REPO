@@ -11,6 +11,9 @@ jobs:
     container:
       image: barichello/godot-ci:4.2.2
 
+    env:
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,36 +23,44 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/4.2.2.stable
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* ~/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
 
-      - name: Setup environment and build
+      - name: Find real Java home
+        run: |
+          REAL_JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "JAVA_HOME=$REAL_JAVA" >> $GITHUB_ENV
+          echo "Found Java at: $REAL_JAVA"
+          ls $REAL_JAVA
+
+      - name: Write editor settings
+        run: |
+          mkdir -p /root/.config/godot
+          SETTINGS=/root/.config/godot/editor_settings-4.tres
+          echo '[gd_resource type="EditorSettings" format=3]' > $SETTINGS
+          echo '' >> $SETTINGS
+          echo '[resource]' >> $SETTINGS
+          echo 'export/android/android_sdk_path = "/usr/lib/android-sdk"' >> $SETTINGS
+          echo 'export/android/debug_keystore = "/root/debug.keystore"' >> $SETTINGS
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $SETTINGS
+          echo 'export/android/debug_keystore_pass = "android"' >> $SETTINGS
+          echo "export/android/java_sdk_path = \"$JAVA_HOME\"" >> $SETTINGS
+          echo 'export/android/force_system_user = false' >> $SETTINGS
+          cat $SETTINGS
+
+      - name: Patch export_presets
+        run: |
+          sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg
+          grep -E "keystore|java" export_presets.cfg || true
+
+      - name: Prepare project dir
         run: |
           chmod -R 777 .
           mkdir -p .godot
 
-          JAVA_HOME_DETECTED=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "Java: $JAVA_HOME_DETECTED"
-
-          BUILD_TOOLS_VER=$(ls /usr/lib/android-sdk/build-tools/ | sort -V | tail -1)
-          echo "Build tools: $BUILD_TOOLS_VER"
-
-          mkdir -p /root/.config/godot
-          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n' > /root/.config/godot/editor_settings-4.tres
-          printf 'export/android/android_sdk_path = "/usr/lib/android-sdk"\n' >> /root/.config/godot/editor_settings-4.tres
-          printf 'export/android/debug_keystore = "/root/debug.keystore"\n' >> /root/.config/godot/editor_settings-4.tres
-          printf 'export/android/debug_keystore_user = "androiddebugkey"\n' >> /root/.config/godot/editor_settings-4.tres
-          printf 'export/android/debug_keystore_pass = "android"\n' >> /root/.config/godot/editor_settings-4.tres
-          printf "export/android/java_sdk_path = \"$JAVA_HOME_DETECTED\"\n" >> /root/.config/godot/editor_settings-4.tres
-          cat /root/.config/godot/editor_settings-4.tres
-
-          sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg
-          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|' export_presets.cfg
-          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|' export_presets.cfg
-          grep keystore export_presets.cfg
-
-          godot --headless --editor --quit || true
-          sleep 3
-
+      - name: Export APK
+        run: |
           mkdir -p build
-          godot --headless --export-debug "Android" build/BallBlast.apk
+          export JAVA_HOME=$JAVA_HOME
+          godot --headless --path . --export-debug "Android" build/BallBlast.apk
+          ls -la build/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
