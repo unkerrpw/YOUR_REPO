@@ -20,68 +20,29 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/4.2.2.stable
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* ~/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
 
-      - name: Debug environment
+      - name: Patch export_presets with keystore
         run: |
-          echo "=== Java ===" && java -version 2>&1 || true
-          echo "=== JAVA_HOME ===" && echo $JAVA_HOME
-          echo "=== Keystore ===" && find / -name "*.keystore" 2>/dev/null || true
-          echo "=== Android SDK ===" && ls /usr/lib/android-sdk/ 2>/dev/null || ls /root/android-sdk/ 2>/dev/null || true
-          echo "=== whoami ===" && whoami
+          sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg
+          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|' export_presets.cfg
+          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|' export_presets.cfg
+          grep keystore export_presets.cfg
 
-      - name: Patch export_presets and create editor settings
+      - name: Create editor settings
         run: |
-          python3 << 'PYEOF'
-          import subprocess, os, re
+          mkdir -p /root/.config/godot
+          cat > /root/.config/godot/editor_settings-4.tres << 'SETTINGS'
+[gd_resource type="EditorSettings" format=3]
 
-          # Find keystore
-          result = subprocess.run(['find', '/', '-name', '*.keystore'], capture_output=True, text=True)
-          keystores = [l for l in result.stdout.strip().split('\n') if l]
-          print("Found keystores:", keystores)
-          ks = keystores[0] if keystores else "/root/.android/debug.keystore"
+[resource]
+export/android/android_sdk_path = "/usr/lib/android-sdk"
+export/android/debug_keystore = "/root/debug.keystore"
+export/android/debug_keystore_user = "androiddebugkey"
+export/android/debug_keystore_pass = "android"
+export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"
+SETTINGS
+          cat /root/.config/godot/editor_settings-4.tres
 
-          # Find Java
-          java_home = os.environ.get('JAVA_HOME', '')
-          if not java_home:
-              r = subprocess.run(['which', 'java'], capture_output=True, text=True)
-              java_bin = r.stdout.strip()
-              java_home = os.path.dirname(os.path.dirname(java_bin)) if java_bin else '/usr/lib/jvm/java-17-openjdk-amd64'
-          print("Java home:", java_home)
-
-          # Find Android SDK
-          sdk_paths = ['/usr/lib/android-sdk', '/root/android-sdk', '/opt/android-sdk']
-          sdk = next((p for p in sdk_paths if os.path.exists(p)), '/usr/lib/android-sdk')
-          print("SDK:", sdk)
-
-          # Patch export_presets.cfg
-          with open('export_presets.cfg', 'r') as f:
-              content = f.read()
-          content = re.sub(r'keystore/debug=""', f'keystore/debug="{ks}"', content)
-          content = re.sub(r'keystore/debug_user=""', 'keystore/debug_user="androiddebugkey"', content)
-          content = re.sub(r'keystore/debug_password=""', 'keystore/debug_password="android"', content)
-          with open('export_presets.cfg', 'w') as f:
-              f.write(content)
-          print("Patched export_presets.cfg")
-          for line in content.split('\n'):
-              if 'keystore' in line: print(line)
-
-          # Write editor settings
-          os.makedirs(os.path.expanduser('~/.config/godot'), exist_ok=True)
-          settings = f'''[gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "{sdk}"
-          export/android/debug_keystore = "{ks}"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          export/android/java_sdk_path = "{java_home}"
-          '''
-          path = os.path.expanduser('~/.config/godot/editor_settings-4.tres')
-          with open(path, 'w') as f:
-              f.write(settings)
-          print("Written editor settings to", path)
-          print(open(path).read())
-          PYEOF
-
-      - name: Fix permissions and import
+      - name: Import project
         run: |
           chmod -R 777 .
           mkdir -p .godot
