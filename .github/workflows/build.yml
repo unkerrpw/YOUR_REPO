@@ -42,29 +42,37 @@ jobs:
 
       - name: Generate debug keystore
         run: |
-          keytool -genkey -v             -keystore debug.keystore             -alias androiddebugkey             -keyalg RSA -keysize 2048             -validity 10000             -storepass android             -keypass android             -dname "CN=Android Debug,O=Android,C=US"
+          keytool -genkey -v             -keystore $GITHUB_WORKSPACE/debug.keystore             -alias androiddebugkey             -keyalg RSA -keysize 2048             -validity 10000             -storepass android             -keypass android             -dname "CN=Android Debug,O=Android,C=US"
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/debug.keystore" >> $GITHUB_ENV
+
+      - name: Patch export_presets.cfg with keystore path
+        run: |
+          sed -i "s|keystore/debug=""|keystore/debug="$GITHUB_WORKSPACE/debug.keystore"|g" export_presets.cfg
+          sed -i "s|keystore/debug_user="androiddebugkey"|keystore/debug_user="androiddebugkey"|g" export_presets.cfg
+          sed -i "s|keystore/debug_password="android"|keystore/debug_password="android"|g" export_presets.cfg
+          cat export_presets.cfg | grep keystore
 
       - name: Create Godot editor settings
         run: |
           mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-4.tres << 'EOF'
-          [gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "/usr/local/lib/android/sdk"
-          export/android/debug_keystore = "${{ github.workspace }}/debug.keystore"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
+          cat > ~/.config/godot/editor_settings-4.tres << EOF
+[gd_resource type="EditorSettings" format=3]
+[resource]
+export/android/android_sdk_path = "/usr/local/lib/android/sdk"
+export/android/debug_keystore = "$GITHUB_WORKSPACE/debug.keystore"
+export/android/debug_keystore_user = "androiddebugkey"
+export/android/debug_keystore_pass = "android"
+EOF
 
       - name: Import project
         run: |
           godot --headless --editor --quit 2>/dev/null || true
-          sleep 3
+          sleep 5
 
       - name: Build APK
         run: |
           mkdir -p build
-          godot --headless --export-debug "Android" build/BallBlast.apk
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -72,9 +80,3 @@ jobs:
           name: BallBlast-APK
           path: build/BallBlast.apk
           retention-days: 30
-
-      - name: Create Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/BallBlast.apk
