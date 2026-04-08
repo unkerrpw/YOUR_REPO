@@ -20,7 +20,6 @@ jobs:
           chown -R root:root .
           chmod -R 777 .
           mkdir -p .godot/editor .godot/imported
-          echo "Workspace: $GITHUB_WORKSPACE"
 
       - name: Setup export templates
         run: |
@@ -30,23 +29,21 @@ jobs:
       - name: Install build-tools 34
         run: yes | sdkmanager "build-tools;34.0.0" 2>/dev/null || true
 
-      - name: Copy keystore and write editor settings
+      - name: Copy and patch editor settings
         run: |
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          cp /root/debug.keystore $HOME/debug.keystore 2>/dev/null || cp /root/debug.keystore . 2>/dev/null || true
-          KS=$(find / -name "debug.keystore" 2>/dev/null | head -1)
-          echo "Keystore: $KS, Java: $JAVA, Home: $HOME"
+          echo "HOME=$HOME  JAVA=$JAVA"
           mkdir -p $HOME/.config/godot
-          S=$HOME/.config/godot/editor_settings-4.tres
-          echo '[gd_resource type="EditorSettings" format=3]' > $S
-          echo '' >> $S
-          echo '[resource]' >> $S
-          echo 'export/android/android_sdk_path = "/usr/lib/android-sdk"' >> $S
-          echo "export/android/debug_keystore = \"$KS\"" >> $S
-          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> $S
-          echo 'export/android/debug_keystore_pass = "android"' >> $S
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> $S
-          cat $S
+          cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
+          echo "=== Original settings ===" && cat $HOME/.config/godot/editor_settings-4.tres
+          sed -i "/java_sdk_path/d" $HOME/.config/godot/editor_settings-4.tres
+          echo "export/android/java_sdk_path = \"$JAVA\"" >> $HOME/.config/godot/editor_settings-4.tres
+          echo "=== Patched settings ===" && cat $HOME/.config/godot/editor_settings-4.tres
+
+      - name: Patch export_presets keystore
+        run: |
+          KS=$(find / -name "debug.keystore" 2>/dev/null | head -1)
+          echo "Keystore: $KS"
           sed -i "s|keystore/debug=\"[^\"]*\"|keystore/debug=\"$KS\"|" export_presets.cfg
           grep keystore export_presets.cfg
 
@@ -54,17 +51,12 @@ jobs:
         run: |
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
           export JAVA_HOME=$JAVA
-          OUT=$GITHUB_WORKSPACE/BallBlast.apk
-          godot --headless --verbose --export-debug "Android" $OUT 2>&1
-          echo "Exit code: $?"
-          echo "=== APK search ==="
-          find / -name "BallBlast.apk" 2>/dev/null || true
-          find / -name "*.apk" -newer /root/debug.keystore 2>/dev/null || true
-          ls -la $GITHUB_WORKSPACE/
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/BallBlast.apk 2>&1 | tail -20
+          ls -la $GITHUB_WORKSPACE/*.apk 2>/dev/null || echo "No APK in workspace"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BallBlast-APK
-          path: "*.apk"
+          path: BallBlast.apk
           retention-days: 30
