@@ -65,5 +65,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BallBlast-APK
-          path: build/BallBlast.apk
+          path: build/
           retention-days: 30
