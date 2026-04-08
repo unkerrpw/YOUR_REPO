@@ -22,7 +22,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android build-tools 34
+      - name: Install build-tools
         run: yes | sdkmanager "build-tools;34.0.0" "platforms;android-34" 2>/dev/null
 
       - name: Download Godot 4.2.2
@@ -41,41 +41,32 @@ jobs:
 
       - name: Generate keystore
         run: |
-          keytool -genkey -v             -keystore debug.keystore             -alias androiddebugkey             -keyalg RSA -keysize 2048 -validity 10000             -storepass android -keypass android             -dname "CN=Android Debug,O=Android,C=US"
-          echo "KS=$GITHUB_WORKSPACE/debug.keystore" >> $GITHUB_ENV
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Write editor settings
         run: |
           mkdir -p ~/.config/godot
-          SDK_PATH=$(dirname $(dirname $(which sdkmanager)))
-          JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "SDK=$SDK_PATH  JAVA=$JAVA_PATH"
-          cat > ~/.config/godot/editor_settings-4.tres << SETTINGS
-[gd_resource type="EditorSettings" format=3]
-
-[resource]
-export/android/android_sdk_path = "$SDK_PATH"
-export/android/debug_keystore = "$GITHUB_WORKSPACE/debug.keystore"
-export/android/debug_keystore_user = "androiddebugkey"
-export/android/debug_keystore_pass = "android"
-export/android/java_sdk_path = "$JAVA_PATH"
-SETTINGS
-          cat ~/.config/godot/editor_settings-4.tres
-
-      - name: Patch export_presets keystore
-        run: |
-          sed -i "s|keystore/debug=\"[^\"]*\"|keystore/debug=\"$GITHUB_WORKSPACE/debug.keystore\"|" export_presets.cfg
+          SDK=$(dirname $(dirname $(which sdkmanager)))
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          KS="$GITHUB_WORKSPACE/debug.keystore"
+          F=~/.config/godot/editor_settings-4.tres
+          echo "[gd_resource type="EditorSettings" format=3]" > $F
+          echo "" >> $F
+          echo "[resource]" >> $F
+          echo "export/android/android_sdk_path = "$SDK"" >> $F
+          echo "export/android/debug_keystore = "$KS"" >> $F
+          echo "export/android/debug_keystore_user = "androiddebugkey"" >> $F
+          echo "export/android/debug_keystore_pass = "android"" >> $F
+          echo "export/android/java_sdk_path = "$JAVA"" >> $F
+          cat $F
+          sed -i "s|keystore/debug=\"[^\"]*\"|keystore/debug=\"$KS\"|" export_presets.cfg
           grep keystore export_presets.cfg
 
-      - name: Import project
+      - name: Import and build
         run: |
-          mkdir -p .godot
+          mkdir -p .godot build
           godot --headless --editor --quit 2>/dev/null || true
           sleep 3
-
-      - name: Build APK
-        run: |
-          mkdir -p build
           godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
