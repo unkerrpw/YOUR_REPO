@@ -15,15 +15,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fix ownership
-        run: chown -R root:root .
+      - name: Fix ownership and permissions
+        run: |
+          chown -R root:root .
+          chmod -R 777 .
+          mkdir -p .godot/editor .godot/imported
+          echo "Workspace: $GITHUB_WORKSPACE"
 
       - name: Setup export templates
         run: |
           mkdir -p $HOME/.local/share/godot/export_templates/4.2.2.stable
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* $HOME/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
-          echo "HOME=$HOME"
-          ls $HOME/.local/share/godot/export_templates/4.2.2.stable/
 
       - name: Install build-tools 34
         run: yes | sdkmanager "build-tools;34.0.0" 2>/dev/null || true
@@ -31,9 +33,9 @@ jobs:
       - name: Copy keystore and write editor settings
         run: |
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "HOME=$HOME, JAVA=$JAVA"
-          cp /root/debug.keystore $HOME/debug.keystore 2>/dev/null || true
-          KS=$HOME/debug.keystore
+          cp /root/debug.keystore $HOME/debug.keystore 2>/dev/null || cp /root/debug.keystore . 2>/dev/null || true
+          KS=$(find / -name "debug.keystore" 2>/dev/null | head -1)
+          echo "Keystore: $KS, Java: $JAVA, Home: $HOME"
           mkdir -p $HOME/.config/godot
           S=$HOME/.config/godot/editor_settings-4.tres
           echo '[gd_resource type="EditorSettings" format=3]' > $S
@@ -45,29 +47,24 @@ jobs:
           echo 'export/android/debug_keystore_pass = "android"' >> $S
           echo "export/android/java_sdk_path = \"$JAVA\"" >> $S
           cat $S
-          ls -la $KS
-
-      - name: Patch export_presets keystore
-        run: |
-          KS=$HOME/debug.keystore
           sed -i "s|keystore/debug=\"[^\"]*\"|keystore/debug=\"$KS\"|" export_presets.cfg
           grep keystore export_presets.cfg
-
-      - name: Prepare .godot dir
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/.godot/editor $GITHUB_WORKSPACE/.godot/imported
-          chmod -R 777 $GITHUB_WORKSPACE/.godot
 
       - name: Build APK
         run: |
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
           export JAVA_HOME=$JAVA
-          godot --headless --verbose --export-debug "Android" $HOME/BallBlast.apk 2>&1 | tail -20
-          find $HOME -name "*.apk" 2>/dev/null || true
+          OUT=$GITHUB_WORKSPACE/BallBlast.apk
+          godot --headless --verbose --export-debug "Android" $OUT 2>&1
+          echo "Exit code: $?"
+          echo "=== APK search ==="
+          find / -name "BallBlast.apk" 2>/dev/null || true
+          find / -name "*.apk" -newer /root/debug.keystore 2>/dev/null || true
+          ls -la $GITHUB_WORKSPACE/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BallBlast-APK
-          path: ${{ env.HOME }}/BallBlast.apk
+          path: "*.apk"
           retention-days: 30
