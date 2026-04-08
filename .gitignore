@@ -1,0 +1,14 @@
+# Godot
+.import/
+.godot/
+export.cfg
+*.translation
+*.uid
+
+# Build output
+build/
+*.apk
+
+# OS
+.DS_Store
+Thumbs.db
