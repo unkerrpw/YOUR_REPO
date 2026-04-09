@@ -23,6 +23,9 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/4.2.2.stable
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* ~/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
 
+      - name: Install build-tools 34
+        run: yes | sdkmanager "build-tools;34.0.0" 2>/dev/null || true
+
       - name: Find Java and write editor settings
         run: |
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
@@ -39,7 +42,7 @@ jobs:
           echo "export/android/java_sdk_path = \"$JAVA\"" >> $S
           cat $S
 
-      - name: Prepare .godot dir
+      - name: Prepare .godot and import
         run: |
           mkdir -p .godot/editor .godot/imported
           chmod -R 777 .godot
