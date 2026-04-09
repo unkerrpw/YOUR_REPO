@@ -18,26 +18,24 @@ jobs:
       - name: Fix ownership
         run: chown -R root:root . && chmod -R 777 .
 
-      - name: Setup export templates
-        run: |
-          mkdir -p /root/.local/share/godot/export_templates/4.2.2.stable
-          cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* /root/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null || true
-
-      - name: Add java path to existing settings
-        run: |
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "Java: $JAVA"
-          F=/root/.config/godot/editor_settings-4.tres
-          sed -i '/java_sdk_path/d' "$F"
-          printf 'export/android/java_sdk_path = "%s"
-' "$JAVA" >> "$F"
-          grep android "$F"
-
       - name: Install build-tools 33
         run: yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
 
+      - name: Add java path to editor settings
+        run: |
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          F=/root/.config/godot/editor_settings-4.tres
+          sed -i /java_sdk_path/d "$F"
+          echo "export/android/java_sdk_path = \"$JAVA\"" >> "$F"
+          grep android "$F"
+
       - name: Prepare .godot
         run: mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
+
+      - name: Setup export templates
+        run: |
+          mkdir -p /root/.local/share/godot/export_templates/4.2.2.stable
+          ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android
 
       - name: Build APK
         run: |
