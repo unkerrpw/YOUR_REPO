@@ -21,23 +21,23 @@ jobs:
       - name: Install build-tools 33
         run: yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
 
-      - name: Patch java path using HOME=/root
+      - name: Patch and build
         run: |
           export HOME=/root
+          echo "HOME=$HOME USER=$(whoami)"
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "JAVA=$JAVA"
           F=/root/.config/godot/editor_settings-4.tres
-          sed -i '/java_sdk_path/d' "$F"
-          echo 'export/android/java_sdk_path = "'"$JAVA"'"' >> "$F"
-          echo "=== Java path added ===" && tail -3 "$F"
-
-      - name: Prepare .godot
-        run: mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-
-      - name: Build APK
-        run: |
+          chmod 666 "$F"
+          cp "$F" /tmp/gs_backup.tres
+          grep -v "java_sdk_path" /tmp/gs_backup.tres > /tmp/gs_new.tres
+          echo 'export/android/java_sdk_path = "'"$JAVA"'"' >> /tmp/gs_new.tres
+          cp /tmp/gs_new.tres "$F"
+          echo "=== Last 5 lines of settings ===" && tail -5 "$F"
+          mkdir -p .godot/editor .godot/imported
+          chmod -R 777 .godot
           mkdir -p build
-          export HOME=/root
-          godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
       - name: Upload APK
