@@ -21,21 +21,17 @@ jobs:
       - name: Install build-tools 33
         run: yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
 
-      - name: Add java path to editor settings
+      - name: Patch java path using HOME=/root
         run: |
+          export HOME=/root
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
           F=/root/.config/godot/editor_settings-4.tres
-          sed -i /java_sdk_path/d "$F"
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> "$F"
-          grep android "$F"
+          sed -i '/java_sdk_path/d' "$F"
+          echo 'export/android/java_sdk_path = "'"$JAVA"'"' >> "$F"
+          echo "=== Java path added ===" && tail -3 "$F"
 
       - name: Prepare .godot
         run: mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-
-      - name: Setup export templates
-        run: |
-          mkdir -p /root/.local/share/godot/export_templates/4.2.2.stable
-          ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android
 
       - name: Build APK
         run: |
