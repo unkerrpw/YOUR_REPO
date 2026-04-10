@@ -21,17 +21,17 @@ jobs:
       - name: Install build-tools 33
         run: yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
 
-      - name: Setup settings at $HOME path
+      - name: Copy settings and templates to HOME
         run: |
           echo "HOME=$HOME"
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "JAVA=$JAVA"
           mkdir -p $HOME/.config/godot
           mkdir -p $HOME/.local/share/godot/export_templates/4.2.2.stable
           cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable/* $HOME/.local/share/godot/export_templates/4.2.2.stable/
           echo "export/android/java_sdk_path = \"$JAVA\"" >> $HOME/.config/godot/editor_settings-4.tres
-          tail -5 $HOME/.config/godot/editor_settings-4.tres
+          echo "Copied settings OK, last 3 lines:"
+          tail -3 $HOME/.config/godot/editor_settings-4.tres
 
       - name: Prepare .godot
         run: mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
@@ -39,7 +39,7 @@ jobs:
       - name: Build APK
         run: |
           mkdir -p build
-          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -v "not exposed"
+          godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -v "not exposed"
           ls -la build/
 
       - name: Upload APK
