@@ -22,15 +22,13 @@ jobs:
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          export JAVA_HOME=$JAVA
-          echo "JAVA_HOME=$JAVA_HOME"
           F=/root/.config/godot/editor_settings-4.tres
           ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
-          cp /tmp/s.tres "$F"
-          chmod 444 "$F"
-          grep java "$F"
+          cp /tmp/s.tres "$F" && chmod 444 "$F"
           rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
+          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -5 || true
+          sleep 2
           mkdir -p build
           JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
