@@ -20,16 +20,13 @@ jobs:
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "HOME=$HOME JAVA=$JAVA"
           mv /root/.config /github/home/.config
           mv /root/.local /github/home/.local
           echo "export/android/java_sdk_path = \"$JAVA\"" >> /github/home/.config/godot/editor_settings-4.tres
-          echo "=== File check ===" && ls -la /github/home/.config/godot/
-          echo "=== Last 5 lines ===" && tail -5 /github/home/.config/godot/editor_settings-4.tres
+          tail -3 /github/home/.config/godot/editor_settings-4.tres
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
-          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
-          echo "Godot exit: $?"
+          godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
       - name: Upload APK
