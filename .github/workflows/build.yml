@@ -22,12 +22,13 @@ jobs:
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> /root/.config/godot/editor_settings-4.tres
-          mkdir -p /github/home
-          rm -rf /github/home/.local
-          ln -sf /root/.local /github/home/.local
-          echo "Symlink: $(ls -la /github/home/.local)"
-          echo "Templates: $(ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android)"
+          F=/root/.config/godot/editor_settings-4.tres
+          echo "Before patch:" && grep -i java "$F" || echo "No java entries yet"
+          ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/settings_new.tres
+          cp /tmp/settings_new.tres "$F"
+          echo "After patch:" && grep -i java "$F"
+          echo "Last 5 lines:" && tail -5 "$F"
+          rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
           godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
