@@ -15,33 +15,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fix ownership
-        run: chown -R root:root . && chmod -R 777 .
-
-      - name: Install build-tools 33
-        run: yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
-
-      - name: Add java path and symlink HOME dirs
-        run: |
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "JAVA=$JAVA, HOME=$HOME"
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> /root/.config/godot/editor_settings-4.tres
-          tail -3 /root/.config/godot/editor_settings-4.tres
-          rm -rf $HOME/.config
-          ln -sf /root/.config $HOME/.config
-          rm -rf $HOME/.local
-          ln -sf /root/.local $HOME/.local
-          echo "Symlinks created:"
-          ls -la $HOME/.config
-          ls -la $HOME/.local
-
-      - name: Prepare .godot
-        run: mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-
       - name: Build APK
         run: |
+          chown -R root:root . && chmod -R 777 .
+          yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "HOME=$HOME JAVA=$JAVA"
+          mv /root/.config /github/home/.config
+          mv /root/.local /github/home/.local
+          echo "export/android/java_sdk_path = \"$JAVA\"" >> /github/home/.config/godot/editor_settings-4.tres
+          echo "=== File check ===" && ls -la /github/home/.config/godot/
+          echo "=== Last 5 lines ===" && tail -5 /github/home/.config/godot/editor_settings-4.tres
+          mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
-          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -v "not exposed"
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          echo "Godot exit: $?"
           ls -la build/
 
       - name: Upload APK
