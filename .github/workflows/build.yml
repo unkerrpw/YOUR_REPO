@@ -23,9 +23,11 @@ jobs:
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
           echo "export/android/java_sdk_path = \"$JAVA\"" >> /root/.config/godot/editor_settings-4.tres
-          mkdir -p /root/.local/share/godot/export_templates/4.2.2.stable
-          ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android || echo "No templates yet"
-          find / -name "android_debug.apk" 2>/dev/null | head -3
+          mkdir -p /github/home
+          rm -rf /github/home/.local
+          ln -sf /root/.local /github/home/.local
+          echo "Symlink: $(ls -la /github/home/.local)"
+          echo "Templates: $(ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android)"
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
           godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
