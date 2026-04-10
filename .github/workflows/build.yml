@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.2.2
+      env:
+        HOME: /root
 
     steps:
       - name: Checkout
@@ -17,16 +19,16 @@ jobs:
 
       - name: Build APK
         run: |
+          echo "HOME=$HOME"
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          mv /root/.config /github/home/.config
-          mv /root/.local /github/home/.local
-          echo "export/android/java_sdk_path = \"$JAVA\"" >> /github/home/.config/godot/editor_settings-4.tres
-          tail -3 /github/home/.config/godot/editor_settings-4.tres
+          echo "JAVA=$JAVA"
+          echo "export/android/java_sdk_path = \"$JAVA\"" >> /root/.config/godot/editor_settings-4.tres
+          tail -3 /root/.config/godot/editor_settings-4.tres
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
-          godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
       - name: Upload APK
