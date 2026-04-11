@@ -26,13 +26,11 @@ jobs:
           F=/root/.config/godot/editor_settings-4.tres
           ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
           cp /tmp/s.tres "$F" && chmod 444 "$F"
-          rm -rf /root/.local/share/godot/export_templates
-          mkdir -p /root/.local/share/godot/export_templates
-          ln -sf /root/.local/share/godot/export_templates/4.2.2.stable /root/.local/share/godot/export_templates/4.2.2.stable 2>/dev/null || true
-          ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android
+          echo "Templates:" && ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android
+          echo "Java entry:" && grep java "$F"
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
           mkdir -p build
-          HOME=/root JAVA_HOME=$JAVA godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -v "not exposed" | grep -v "skipping"
+          HOME=/root JAVA_HOME=$JAVA godot --headless --editor --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
       - name: Upload APK
