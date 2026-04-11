@@ -19,7 +19,6 @@ jobs:
 
       - name: Build APK
         run: |
-          set -e
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
@@ -34,10 +33,12 @@ jobs:
           chmod -R 777 .godot
           chmod 444 "$F"
           rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
-          echo "=== Preset keystore ===" && grep "keystore/debug =" export_presets.cfg
+          sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg || true
+          grep "keystore/debug" export_presets.cfg || true
           mkdir -p build
           JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
-          ls -la build/
+          echo "Exit: $?"
+          ls -la build/ || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
