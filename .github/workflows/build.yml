@@ -19,18 +19,22 @@ jobs:
 
       - name: Build APK
         run: |
+          set -e
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          export JAVA_HOME=$JAVA
           F=/root/.config/godot/editor_settings-4.tres
           ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
           cp /tmp/s.tres "$F" && chmod 444 "$F"
           rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-          JAVA_HOME=$JAVA godot --headless --import 2>/dev/null || true
+          JAVA_HOME=$JAVA godot --headless --editor --quit 2>/dev/null || true
+          sleep 2
           chmod -R 777 .godot
           chmod 444 "$F"
-          sleep 1
+          rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
+          echo "=== Preset keystore ===" && grep "keystore/debug =" export_presets.cfg
           mkdir -p build
           JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
