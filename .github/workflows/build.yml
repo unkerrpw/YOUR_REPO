@@ -19,6 +19,7 @@ jobs:
 
       - name: Build APK
         run: |
+          export HOME=/root
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
@@ -26,19 +27,14 @@ jobs:
           F=/root/.config/godot/editor_settings-4.tres
           ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
           cp /tmp/s.tres "$F" && chmod 444 "$F"
-          rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-          JAVA_HOME=$JAVA godot --headless --editor --quit 2>/dev/null || true
+          HOME=/root JAVA_HOME=$JAVA godot --headless --editor --quit 2>/dev/null || true
           sleep 2
-          chmod -R 777 .godot
-          chmod 444 "$F"
-          rm -rf /github/home/.local && ln -sf /root/.local /github/home/.local
+          chmod -R 777 .godot && chmod 444 "$F"
           sed -i 's|keystore/debug=""|keystore/debug="/root/debug.keystore"|' export_presets.cfg || true
-          grep "keystore/debug" export_presets.cfg || true
           mkdir -p build
-          JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
-          echo "Exit: $?"
-          ls -la build/ || true
+          HOME=/root JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          ls -la build/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
