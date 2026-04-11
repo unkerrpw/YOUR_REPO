@@ -10,28 +10,37 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.2.2
-      env:
-        HOME: /root
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build APK
+      - name: Setup
         run: |
-          export HOME=/root
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          export JAVA_HOME=$JAVA
-          F=/root/.config/godot/editor_settings-4.tres
-          ( grep -v "java_sdk_path" "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
-          cp /tmp/s.tres "$F"
-          echo "java entry: $(grep java $F)"
+          echo "HOME=$HOME JAVA=$JAVA"
+          mkdir -p $HOME/.config/godot $HOME/.local
+          cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
+          rm -rf $HOME/.local && ln -sf /root/.local $HOME/.local
+          ( grep -v java_sdk_path $HOME/.config/godot/editor_settings-4.tres ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
+          cp /tmp/s.tres $HOME/.config/godot/editor_settings-4.tres
+          echo "java: $(grep java $HOME/.config/godot/editor_settings-4.tres)"
           echo "templates: $(ls /root/.local/share/godot/export_templates/4.2.2.stable/ | grep android)"
+
+      - name: Import project
+        run: |
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -3 || true
+          chmod -R 777 .godot
+
+      - name: Export APK
+        run: |
           mkdir -p build
-          HOME=/root JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
 
       - name: Upload APK
