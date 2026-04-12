@@ -10,30 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.2.2
-      env:
-        HOME: /root
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup and build
+      - name: Build APK
         run: |
           chown -R root:root . && chmod -R 777 .
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "HOME=$HOME"
+          echo "HOME=$HOME JAVA=$JAVA"
           mkdir -p $HOME/.config/godot
           cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
           rm -rf $HOME/.local && ln -sf /root/.local $HOME/.local
-          ( grep -v java_sdk_path $HOME/.config/godot/editor_settings-4.tres ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
-          cp /tmp/s.tres $HOME/.config/godot/editor_settings-4.tres
-          echo "java: $(grep java $HOME/.config/godot/editor_settings-4.tres)"
+          ( grep -v java_sdk_path $HOME/.config/godot/editor_settings-4.tres ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/godot_settings.tres
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -5 || true
+          cp /tmp/godot_settings.tres $HOME/.config/godot/editor_settings-4.tres
+          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -3 || true
           chmod -R 777 .godot
-          cp /tmp/s.tres $HOME/.config/godot/editor_settings-4.tres
+          cp /tmp/godot_settings.tres $HOME/.config/godot/editor_settings-4.tres
           rm -rf $HOME/.local && ln -sf /root/.local $HOME/.local
+          echo "Settings OK: $(ls -la $HOME/.config/godot/editor_settings-4.tres)"
+          echo "Java: $(grep java $HOME/.config/godot/editor_settings-4.tres)"
           mkdir -p build
           JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
           ls -la build/
