@@ -15,25 +15,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup templates
+      - name: Setup and build
         run: |
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "HOME=$HOME JAVA=$JAVA ANDROID_HOME=$ANDROID_HOME"
           mkdir -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable
           yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
           chown -R root:root . && chmod -R 777 .
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-
-      - name: Import project
-        run: |
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -5 || true
+          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -3 || true
           chmod -R 777 .godot
-
-      - name: Export APK
-        run: |
+          F=~/.config/godot/editor_settings-4.tres
+          if [ -f "$F" ]; then
+            echo "Settings created by import, patching..."
+            ( grep -v java_sdk_path "$F" ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/s.tres
+            cp /tmp/s.tres "$F"
+            grep android "$F" | grep -i java
+          else
+            echo "No settings file created by import!"
+          fi
           mkdir -p build
-          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          JAVA_HOME=$JAVA godot --headless --verbose --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -vE "not exposed|skipping"
           ls -la build/
 
       - name: Upload APK
