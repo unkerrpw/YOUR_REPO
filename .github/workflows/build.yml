@@ -15,26 +15,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build APK
+      - name: Setup
         run: |
-          chown -R root:root . && chmod -R 777 .
-          yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
+          mkdir -p ~/.local/share/godot/export_templates
+          mv /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable
+          mkdir -p ~/.config/godot
+          cp /root/.config/godot/editor_settings-4.tres ~/.config/godot/editor_settings-4.tres
           JAVA=$(dirname $(dirname $(readlink -f $(which java))))
-          echo "HOME=$HOME JAVA=$JAVA"
-          mkdir -p $HOME/.config/godot
-          cp /root/.config/godot/editor_settings-4.tres $HOME/.config/godot/editor_settings-4.tres
-          rm -rf $HOME/.local && ln -sf /root/.local $HOME/.local
-          ( grep -v java_sdk_path $HOME/.config/godot/editor_settings-4.tres ; printf 'export/android/java_sdk_path = "%s"\n' "$JAVA" ) > /tmp/godot_settings.tres
+          echo "JAVA=$JAVA ANDROID_HOME=$ANDROID_HOME HOME=$HOME"
+          yes | sdkmanager "build-tools;33.0.2" 2>/dev/null || true
+          chown -R root:root . && chmod -R 777 .
           mkdir -p .godot/editor .godot/imported && chmod -R 777 .godot
-          cp /tmp/godot_settings.tres $HOME/.config/godot/editor_settings-4.tres
-          JAVA_HOME=$JAVA godot --headless --import 2>&1 | tail -3 || true
-          chmod -R 777 .godot
-          cp /tmp/godot_settings.tres $HOME/.config/godot/editor_settings-4.tres
-          rm -rf $HOME/.local && ln -sf /root/.local $HOME/.local
-          echo "Settings OK: $(ls -la $HOME/.config/godot/editor_settings-4.tres)"
-          echo "Java: $(grep java $HOME/.config/godot/editor_settings-4.tres)"
+
+      - name: Export
+        run: |
           mkdir -p build
-          JAVA_HOME=$JAVA godot --headless --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk
+          JAVA=$(dirname $(dirname $(readlink -f $(which java))))
+          JAVA_HOME=$JAVA godot --headless --verbose --export-debug "Android" $GITHUB_WORKSPACE/build/BallBlast.apk 2>&1 | grep -vE "not exposed|skipping|Class.*Editor"
           ls -la build/
 
       - name: Upload APK
